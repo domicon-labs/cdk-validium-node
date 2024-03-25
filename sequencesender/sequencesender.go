@@ -5,6 +5,7 @@ import (
 	"crypto/ecdsa"
 	"errors"
 	"fmt"
+	"github.com/ethereum/go-ethereum/rpc"
 	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/etherman/types"
@@ -30,23 +31,25 @@ var (
 
 // SequenceSender represents a sequence sender
 type SequenceSender struct {
-	cfg          Config
-	state        stateInterface
-	ethTxManager ethTxManager
-	etherman     etherman
-	eventLog     *event.EventLog
-	privKey      *ecdsa.PrivateKey
+	cfg           Config
+	state         stateInterface
+	ethTxManager  ethTxManager
+	etherman      etherman
+	eventLog      *event.EventLog
+	privKey       *ecdsa.PrivateKey
+	domiconRpcCli *rpc.Client
 }
 
 // New inits sequence sender
-func New(cfg Config, state stateInterface, etherman etherman, manager ethTxManager, eventLog *event.EventLog, privKey *ecdsa.PrivateKey) (*SequenceSender, error) {
+func New(cfg Config, state stateInterface, etherman etherman, manager ethTxManager, eventLog *event.EventLog, privKey *ecdsa.PrivateKey, domiconRpcCli *rpc.Client) (*SequenceSender, error) {
 	return &SequenceSender{
-		cfg:          cfg,
-		state:        state,
-		etherman:     etherman,
-		ethTxManager: manager,
-		eventLog:     eventLog,
-		privKey:      privKey,
+		cfg:           cfg,
+		state:         state,
+		etherman:      etherman,
+		ethTxManager:  manager,
+		eventLog:      eventLog,
+		privKey:       privKey,
+		domiconRpcCli: domiconRpcCli,
 	}, nil
 }
 
@@ -106,6 +109,18 @@ func (s *SequenceSender) tryToSendSequence(ctx context.Context, ticker *time.Tic
 		lastVirtualBatchNum+1, lastVirtualBatchNum+uint64(sequenceCount),
 	)
 	metrics.SequencesSentToL1(float64(sequenceCount))
+
+	// send data to domicon and get domicon broadcastnode`s signature
+	domiconDAItem := s.GenerateDomiconDA()
+	var signature *[]byte
+	err = s.domiconRpcCli.CallContext(ctx, signature, "sendDA", domiconDAItem.index, domiconDAItem.legth, domiconDAItem.broadcaster,
+		domiconDAItem.user, domiconDAItem.commitment, domiconDAItem.sign, domiconDAItem.data)
+	if err != nil {
+		log.Errorw("sendDA", "failed", err)
+		return
+	}
+	//  send signature cm to cdk contract
+	// TODO
 
 	// add sequence to be monitored
 	signaturesAndAddrs, err := s.getSignaturesAndAddrsFromDataCommittee(ctx, sequences)

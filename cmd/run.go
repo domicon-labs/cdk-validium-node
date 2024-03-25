@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/ethereum/go-ethereum/rpc"
 	"net"
 	"net/http"
 	"net/http/pprof"
@@ -421,6 +422,10 @@ func createSequenceSender(cfg config.Config, pool *pool.Pool, etmStorage *ethtxm
 
 	ethTxManager := ethtxmanager.New(cfg.EthTxManager, etherman, etmStorage, st)
 
+	domiconRpcCli, err := rpc.DialOptions(context.Background(), "todo//domiconurl")
+	if err != nil {
+		log.Fatal(err)
+	}
 	seqSender, err := sequencesender.New(cfg.SequenceSender, st, etherman, ethTxManager, eventLog, pk)
 	if err != nil {
 		log.Fatal(err)
