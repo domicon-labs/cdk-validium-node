@@ -426,7 +426,7 @@ func createSequenceSender(cfg config.Config, pool *pool.Pool, etmStorage *ethtxm
 	if err != nil {
 		log.Fatal(err)
 	}
-	seqSender, err := sequencesender.New(cfg.SequenceSender, st, etherman, ethTxManager, eventLog, pk)
+	seqSender, err := sequencesender.New(cfg.SequenceSender, st, etherman, ethTxManager, eventLog, pk, domiconRpcCli)
 	if err != nil {
 		log.Fatal(err)
 	}
