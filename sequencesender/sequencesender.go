@@ -14,6 +14,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/sequencer/metrics"
 	"github.com/0xPolygonHermez/zkevm-node/state"
+	"github.com/domicon-labs/kzg-sdk"
 	"github.com/jackc/pgx/v4"
 )
 
@@ -38,10 +39,11 @@ type SequenceSender struct {
 	eventLog      *event.EventLog
 	privKey       *ecdsa.PrivateKey
 	domiconRpcCli *rpc.Client
+	domiconKzg    *kzg_sdk.DomiconSdk
 }
 
 // New inits sequence sender
-func New(cfg Config, state stateInterface, etherman etherman, manager ethTxManager, eventLog *event.EventLog, privKey *ecdsa.PrivateKey, domiconRpcCli *rpc.Client) (*SequenceSender, error) {
+func New(cfg Config, state stateInterface, etherman etherman, manager ethTxManager, eventLog *event.EventLog, privKey *ecdsa.PrivateKey, domiconRpcCli *rpc.Client, domiconKzg *kzg_sdk.DomiconSdk) (*SequenceSender, error) {
 	return &SequenceSender{
 		cfg:           cfg,
 		state:         state,
@@ -50,6 +52,7 @@ func New(cfg Config, state stateInterface, etherman etherman, manager ethTxManag
 		eventLog:      eventLog,
 		privKey:       privKey,
 		domiconRpcCli: domiconRpcCli,
+		domiconKzg:    domiconKzg,
 	}, nil
 }
 
@@ -111,7 +114,7 @@ func (s *SequenceSender) tryToSendSequence(ctx context.Context, ticker *time.Tic
 	metrics.SequencesSentToL1(float64(sequenceCount))
 
 	// send data to domicon and get domicon broadcastnode`s signature
-	domiconDAItem := s.GenerateDomiconDA()
+	domiconDAItem, err := s.GenerateDomiconDA(sequences)
 	var signature *[]byte
 	err = s.domiconRpcCli.CallContext(ctx, signature, "sendDA", domiconDAItem.index, domiconDAItem.legth, domiconDAItem.broadcaster,
 		domiconDAItem.user, domiconDAItem.commitment, domiconDAItem.sign, domiconDAItem.data)

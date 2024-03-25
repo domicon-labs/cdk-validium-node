@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	kzg_sdk "github.com/domicon-labs/kzg-sdk"
 	"github.com/ethereum/go-ethereum/rpc"
 	"net"
 	"net/http"
@@ -406,6 +407,9 @@ func createSequencer(cfg config.Config, pool *pool.Pool, st *state.State, eventL
 	return seq
 }
 
+const dChunkSize = 30
+const dSrsSize = 1 << 16
+
 func createSequenceSender(cfg config.Config, pool *pool.Pool, etmStorage *ethtxmanager.PostgresStorage, st *state.State, eventLog *event.EventLog) *sequencesender.SequenceSender {
 	etherman, err := newEtherman(cfg)
 	if err != nil {
@@ -426,7 +430,12 @@ func createSequenceSender(cfg config.Config, pool *pool.Pool, etmStorage *ethtxm
 	if err != nil {
 		log.Fatal(err)
 	}
-	seqSender, err := sequencesender.New(cfg.SequenceSender, st, etherman, ethTxManager, eventLog, pk, domiconRpcCli)
+
+	domiconKzg, err := kzg_sdk.InitDomiconSdk(dSrsSize, "./srs")
+	if err != nil {
+		log.Fatal(err)
+	}
+	seqSender, err := sequencesender.New(cfg.SequenceSender, st, etherman, ethTxManager, eventLog, pk, domiconRpcCli, domiconKzg)
 	if err != nil {
 		log.Fatal(err)
 	}
